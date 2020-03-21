@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# check whether mpv is installed
+which mpv > /dev/null 2>&1
+if [[ $? != 0 ]]; then
+ echo "mpv not found - aborting"
+ exit 1
+fi
+
+# check whether the ./stations directory exists
+if [[ ! -d stations ]]; then
+ echo "stations directory not found - aborting"
+ exit 1
+fi
+
+# check whether the ./stations directory is not empty
+if [[ -z "$(ls -A stations)" ]]; then
+ echo "stations directory is empty - aborting"
+ exit 1
+fi
+
+cd stations
+station_count="$(ls -1 | wc -l)"
+echo "$station_count stations found"
+IFS=""
+while true; do
+echo -e "\nEnter station to play or q to quit: "
+ select station in *; do 
+  if [[ "$REPLY" = "q" ]]; then
+   exit 0
+  fi
+  if [[ "$REPLY" -lt 1 ]] || [[ "$REPLY" -gt "$station_count" ]]; then
+   continue
+  fi
+  echo -e "\nStarting mpv - return to menu with Ctrl-C\n"
+  mpv --quiet "$(cat $station)"
+  break
+
+ done
+done
