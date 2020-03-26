@@ -1,11 +1,17 @@
 #!/bin/bash
 
+# bashradio - simple command line web radio player
+# https://github.com/faultierkatze/bashradio
+
 # check whether mpv is installed
 which mpv > /dev/null 2>&1
 if [[ $? != 0 ]]; then
  echo "mpv not found - aborting"
  exit 1
 fi
+
+# make sure the working directory is set to the script location
+cd "$(dirname $BASH_SOURCE)"
 
 # check whether the ./stations directory exists
 if [[ ! -d stations ]]; then
@@ -19,19 +25,54 @@ if [[ -z "$(ls -A stations)" ]]; then
  exit 1
 fi
 
+# main program routine
 cd stations
 station_count="$(ls -1 | wc -l)"
 echo "$station_count stations found"
 IFS=""
 while true; do
-echo -e "\nEnter station to play or q to quit: "
- select station in *; do 
+echo -e "\nEnter station to play - or (q)uit; (a)dd station; (d)elete station"
+ select station in *; do
+
+# check whether user wants to quit
   if [[ "$REPLY" = "q" ]]; then
    exit 0
   fi
+
+# station adding routine
+  if [[ "$REPLY" = "a" ]]; then
+   echo -e "\n"
+   read -p "Enter new station name: " new_station
+   read -p "Enter new station URL (input is not validated!): " new_url
+   echo "$new_url" > $new_station
+   echo "Station added"
+   break
+  fi
+
+# station deletion routine
+  if [[ "$REPLY" = "d" ]]; then
+   delete=1
+   echo -e "\nEnter station to delete:"
+   continue
+  fi
+  if [[ "$delete" = "1" ]]; then
+   read -p "Delete $station? This cannot be undone. (y) for yes, anything else to abort. " delete_confirm
+    if [[ "$delete_confirm" = "y" ]]; then
+     rm $station
+     echo "Station deleted."
+     delete=0
+     break
+    fi
+   delete=0
+   echo "aborted"
+   break
+  fi
+
+# basic input validation so we don't call mpv with garbage options
   if [[ "$REPLY" -lt 1 ]] || [[ "$REPLY" -gt "$station_count" ]]; then
    continue
   fi
+
   echo -e "\nStarting mpv - return to menu with Ctrl-C\n"
   mpv --quiet "$(cat $station)"
   break
