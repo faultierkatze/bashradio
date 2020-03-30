@@ -1,7 +1,7 @@
 # bashradio
 simple command line web radio player
 
-depends on *mpv* for playback, but other players such as mplayer could also be easily used by changing two lines of code - maybe there'll be some option to choose a player in the future
+depends on *mpv* for playback, but other players such as mplayer can be selected with `--player <...>`
 
 stations are saved as plain-text files in ./stations, containing one URL per file (the file name doubles as the station name displayed)
 
