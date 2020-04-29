@@ -13,4 +13,5 @@ the stations provided in this repo are -unsurprisingly- ones that I like to list
   --player-option <...>  Passes an option directly to the player. Use once per option.
   --quiet                Suppresses player output except errors (stderr).
   --quieter              Suppresses all player output (stdout and stderr). Also clears up the screen when returning to the menu.
-  --loop                 Automatically restart a stream unless the player is quit with Ctrl-C. EXPERIMENTAL, might break the script if with anything else than mpv!```
+  --loop                 Automatically restart a stream unless the player is quit with Ctrl-C. EXPERIMENTAL, might break the script if with anything else than mpv!
+```
