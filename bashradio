@@ -2,38 +2,82 @@
 
 # bashradio - simple command line web radio player
 # https://github.com/faultierkatze/bashradio
-version="2020-03-30"
+version="2020-04-29"
 
+# initialize some variables we'll need for safety and to keep an overview
+player="mpv"
+player_options=()
+quietness=0
+loop=0
+new_station=""
+new_url=""
+delete=0
+delete_confirm=""
+
+# input validation that we'll need at several points to prevent messy outcomes
+function validate_input {
+  if [[ ! $1 =~ ^[1-9][0-9]*$ ]] || [[ $1 -lt 1 ]] || [[ $1 -gt "$station_count" ]]; then
+    echo "invalid input"
+    return 1
+  fi
+}
 
 # parse command line options
-case $1 in
+while [[ $# -gt 0 ]]; do
+  case $1 in
 
 # display help message
-  "help" | "-help" | "--help" | "-h" | "-?" )
-    echo -e ""$(basename $0)" - simple command line web radio player\nVersion: $version\n"
-    echo -e "Stations are saved as plain-text files in ./stations, containing one URL per file (the file name doubles as the station name displayed).\nStations can be added or deleted from within the program or by modifying the content of ./stations directly.\n"
-    echo -e "Usage:\n  --help - This help message.\n  --player <...> - Specify the player to be used (optional, default is mpv)."
-    exit 0
-  ;;
+    "help" | "-help" | "--help" | "-h" | "-?" )
+      echo -e ""$(basename $0)" - simple command line web radio player\nVersion: $version\n"
+      echo -e "Stations are saved as plain-text files in ./stations, containing one URL per file (the file name doubles as the station name displayed).\nStations can be added or deleted from within the program or by modifying the content of ./stations directly.\n"
+      echo "Usage:"
+      echo "  --help                 Display this help message."
+      echo "  --player <...>         Specify the player to be used (optional, default is mpv)."
+      echo "  --player-option <...>  Passes an option directly to the player. Use once per option."
+      echo "  --quiet                Suppresses player output except errors (stderr)."
+      echo "  --quieter              Suppresses all player output (stdout and stderr). Also clears up the screen when returning to the menu."
+      echo "  --loop                 Automatically restart a stream unless the player is quit with Ctrl-C. EXPERIMENTAL, might break the script if with anything else than mpv!"
+      exit 0
+    ;;
 
 # check whether a different player than mpv shall be used
-  "--player" )
-    player=$2
-    echo "using $player for playback"
-  ;;
+    "--player" )
+      shift
+      player=$1
+      echo "using $player for playback"
+    ;;
 
-# do nothing in case of no parameters given
-  "" )
-    player="mpv"
-  ;;
+# copy parameters the player shall be called with into a variable
+    "--player-option" )
+      shift
+      player_options+=("$1")
+    ;;
+
+# see whether the output shall be quiet or quieter
+    "--quiet" )
+      quietness=1
+      echo "Will only output error messages from the player."
+    ;;
+    "--quieter" )
+      quietness=2
+      echo "Will not output any messages from the player."
+    ;;
+
+# see whether the stream shall be looped
+    "--loop" )
+      loop=1
+      echo "automatic restart of stream enabled"
+    ;;
 
 # return an error if a parameter is given but not recognized
-  * )
-    echo "unknown option: $1"
-    exit 1
-  ;;
+    * )
+      echo "option \"$1\" not recognized - aborting"
+      exit 1
+    ;;
 
-esac
+  esac
+shift
+done
 
 
 # check whether $player is installed
@@ -60,11 +104,10 @@ fi
 
 
 # main program routine
-echo -e ""$(basename $0)" - version: $version"
+echo -e "\n"$(basename $0)" - version: $version"
 cd stations
 station_count="$(ls -1 | wc -l)"
 echo "$station_count stations found"
-delete=0
 IFS=""
 
 while true; do
@@ -78,11 +121,11 @@ echo -e "\nEnter station to play - or (q)uit; (a)dd station; (d)elete station"
 
 # station adding routine
     if [[ "$REPLY" = "a" ]]; then
-      echo -e "\n"
+      echo
       read -p "Enter new station name: " new_station
       read -p "Enter new station URL (input is not validated!): " new_url
       echo "$new_url" > $new_station
-      echo "Station added"
+      echo "Station added."
       break
     fi
 
@@ -93,7 +136,9 @@ echo -e "\nEnter station to play - or (q)uit; (a)dd station; (d)elete station"
       continue
     fi
     if [[ "$delete" = "1" ]]; then
-      read -p "Delete $station? This cannot be undone. (y) for yes, anything else to abort. " delete_confirm
+      echo
+      validate_input $REPLY || break
+      read -p "Delete $station? This cannot be undone. (y) for yes, anything else to abort: " delete_confirm
         if [[ "$delete_confirm" = "y" ]]; then
           rm $station
           echo "Station deleted."
@@ -105,13 +150,28 @@ echo -e "\nEnter station to play - or (q)uit; (a)dd station; (d)elete station"
       break
     fi
 
-# basic input validation so we don't call mpv with garbage options
-    if [[ "$REPLY" -lt 1 ]] || [[ "$REPLY" -gt "$station_count" ]]; then
-      continue
-    fi
+# basic input validation so we don't call the player with garbage options
+    validate_input $REPLY || break
 
+# finally, the moment we've all been waiting for - playing audio!
     echo -e "\nStarting $player - return to menu with Ctrl-C\n"
-    $player "$(cat $station)"
+
+    while true; do
+      if [[ $quietness = "1" ]]; then
+        $player "${player_options[@]}" "$(cat $station)" > /dev/null
+      elif [[ $quietness = "2" ]]; then
+        $player "${player_options[@]}" "$(cat $station)" > /dev/null 2>&1
+        clear -x
+      else
+        $player "${player_options[@]}" "$(cat $station)"
+      fi
+
+# break in case the script hasn't been called with --loop or the player gives back error code 4 (quit with Ctrl-C for mpv)
+      if [[ $? -eq "4" ]] || [[ "$loop" = "0" ]]; then
+        break
+      fi
+    done
+
     break
 
    done
